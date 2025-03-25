@@ -226,7 +226,7 @@ def plot_outliers(df: pd.DataFrame, clean_df: pd.DataFrame, outliers_df: pd.Data
         plt.tight_layout()
 
         # Save figure
-        plt.savefig(os.path.join(output_dir, f'outliers_{column}.png'))
+        plt.savefig(os.path.join(output_dir, f'{column}_outliers.png'))
         plt.close()
 
 

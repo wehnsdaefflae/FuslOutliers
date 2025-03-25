@@ -203,7 +203,7 @@ def process_experiments(grouped_data):
     return df_experiments, groups
 
 def plot_and_export_group_data(grouped_data, df_experiments, group_name, file_name, export_base_path):
-    export_path = os.path.join(export_base_path, file_name, 'Experimente')
+    export_path = os.path.join(export_base_path, "Experimente")
     os.makedirs(export_path, exist_ok=True)
 
     group_columns = grouped_data.columns
@@ -301,9 +301,10 @@ def main(file_path: str):
 
     df_experiments, groups = process_experiments(grouped_data)
 
-    export_base_path = os.path.join(os.getcwd(), "Export")
+    file_name_new = file_name.rsplit(".", 1)[0]
+    export_base_path = os.path.join(os.getcwd(), "Export", file_name_new)
     os.makedirs(export_base_path, exist_ok=True)
-    export_base_path = os.path.join(os.getcwd(), 'Export')
+
     for group_name in df_experiments.columns:
         plot_and_export_group_data(grouped_data[groups[group_name]], df_experiments, group_name, file_name, export_base_path)
 
