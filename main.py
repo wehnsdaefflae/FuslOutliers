@@ -55,18 +55,39 @@ def handle_device_specific_processing(df: pd.DataFrame) -> pd.DataFrame:
 
 def group_and_resample(df: pd.DataFrame, group_cols: list, resample_interval: str = '10min') -> dict:
     print("[4/8] Grouping and resampling data...")
+## Mix aus beiden Codes wegen Effizienz
+    # Step 1: Resample each group and store in a dictionary
+    grouped_data = {}
+    for group_name, group_df in df.groupby(group_cols):
+        numeric_cols = group_df.select_dtypes(include=[np.number])
+        group_resampled = numeric_cols.resample(resample_interval).mean()
+        group_resampled = group_resampled.drop(columns=["Depth level", "Horizontal distance"], errors='ignore')
+        group_name_str = "_".join(map(str, group_name)).replace(" ", "_")[:31]
+        grouped_data[group_name_str] = group_resampled
+
+    # Step 2: Merge resampled DataFrames into a single DataFrame
+    merged_df = None
+    for group_name, group_df in grouped_data.items():
+        group_df = group_df.rename(columns=lambda x: f"{group_name}_{x}")
+        if merged_df is None:
+            merged_df = group_df
+        else:
+            merged_df = pd.merge(merged_df, group_df, on='Timestamp', how='outer')
+
+    return merged_df
+
 ## Version aus altem Code überarbeitet
-    grouped_data = df.groupby(group_cols)
-    list_of_dfs = []
-    for group_name, group_df in grouped_data:
-        group_df = group_df.rename(columns={'Value': "_".join(map(str, group_name)).replace(" ", "_")})
-        group_df = group_df.drop(columns=group_cols)
-        list_of_dfs.append(group_df)
-    data_sorted = list_of_dfs[0]
-    for group_df in list_of_dfs[1:]:
-        data_sorted = pd.merge(data_sorted, group_df, on='Timestamp', how='outer')
-    grouped_data = data_sorted.resample(resample_interval, label='left').mean()
-    return grouped_data
+    # grouped_data = df.groupby(group_cols)
+    # list_of_dfs = []
+    # for group_name, group_df in grouped_data:
+    #     group_df = group_df.rename(columns={'Value': "_".join(map(str, group_name)).replace(" ", "_")})
+    #     group_df = group_df.drop(columns=group_cols)
+    #     list_of_dfs.append(group_df)
+    # data_sorted = list_of_dfs[0]
+    # for group_df in list_of_dfs[1:]:
+    #     data_sorted = pd.merge(data_sorted, group_df, on='Timestamp', how='outer')
+    # grouped_data = data_sorted.resample(resample_interval, label='left').mean()
+    # return grouped_data
 
 ## Es werden einzelne Gruppen gebildet und damit weiter berechnet
     # grouped_data = {}
@@ -297,16 +318,16 @@ def main(file_path: str):
     df = preprocess_data(df)
     df = handle_device_specific_processing(df)
 
-    grouped_data = group_and_resample(df, group_cols=["Plot", "Depth level", "Horizontal distance"], resample_interval='10min')
+    merged_df = group_and_resample(df, group_cols=["Plot", "Depth level", "Horizontal distance"], resample_interval='10min')
 
-    df_experiments, groups = process_experiments(grouped_data)
+    df_experiments, groups = process_experiments(merged_df)
 
     file_name_new = file_name.rsplit(".", 1)[0]
     export_base_path = os.path.join(os.getcwd(), "Export", file_name_new)
     os.makedirs(export_base_path, exist_ok=True)
 
     for group_name in df_experiments.columns:
-        plot_and_export_group_data(grouped_data[groups[group_name]], df_experiments, group_name, file_name, export_base_path)
+        plot_and_export_group_data(merged_df[groups[group_name]], df_experiments, group_name, file_name, export_base_path)
 
     # all_outliers = {}
     # experiment_groups = {}
